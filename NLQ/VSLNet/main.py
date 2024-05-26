@@ -277,6 +277,7 @@ if __name__ == "__main__":
 
         job = executor.submit(main, configs, parser)
         print("job=", job.job_id)
+        print("First commit!")
 
         # wait for it
         if configs.slurm_wait:
