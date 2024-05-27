@@ -254,6 +254,15 @@ def main_vslnet(configs, parser):
 
         score_writer.close()
 
+        # Save the final model at the end of training
+        torch.save(
+            model.state_dict(),
+            os.path.join(
+                model_dir,
+                "{}_final.pth".format(configs.model_name),
+            ),
+        )
+
     elif configs.mode.lower() == "test":
         if not os.path.exists(model_dir):
             raise ValueError("No pre-trained weights exist")
