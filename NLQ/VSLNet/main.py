@@ -26,7 +26,9 @@ from utils.runner_utils import (
 
 def main_vslnet(configs, parser):
     print(f"Running with {configs}", flush=True)
-
+    freeze_stat = configs.freeze
+    print("Freeze status: ", freeze_stat)
+    print("Freeze status =1?:", freeze_stat == 1)
     # set tensorflow configs
     set_th_config(configs.seed)
 
@@ -102,6 +104,10 @@ def main_vslnet(configs, parser):
         model = VSLNet(
             configs=configs, word_vectors=dataset.get("word_vector", None)
         ).to(device)
+
+        # # for freeze
+        # for p in model.
+
         optimizer, scheduler = build_optimizer_and_scheduler(model, configs=configs)
         # start training
         best_metric = -1.0
@@ -388,13 +394,20 @@ def main_vslbase(configs, parser):
                 # generate mask
                 video_mask = convert_length_to_mask(vfeat_lens).to(device)
                 # compute logits
+                # h_score, start_logits, end_logits = model(
+                #     word_ids, char_ids, vfeats, video_mask, query_mask
+                # )
                 start_logits, end_logits = model(
                     word_ids, char_ids, vfeats, video_mask, query_mask
                 )
-
+                # compute loss
+                # highlight_loss = model.compute_highlight_loss(
+                #     h_score, h_labels, video_mask
+                # )
                 loc_loss = model.compute_loss(
                     start_logits, end_logits, s_labels, e_labels
                 )
+                # total_loss = loc_loss + configs.highlight_lambda * highlight_loss
                 total_loss = loc_loss
                 # compute and apply gradients
                 optimizer.zero_grad()
@@ -407,6 +420,9 @@ def main_vslbase(configs, parser):
                 if writer is not None and global_step % configs.tb_log_freq == 0:
                     writer.add_scalar("Loss/Total", total_loss.detach().cpu(), global_step)
                     writer.add_scalar("Loss/Loc", loc_loss.detach().cpu(), global_step)
+                    # writer.add_scalar("Loss/Highlight", highlight_loss.detach().cpu(), global_step)
+                    # writer.add_scalar("Loss/Highlight (*lambda)",
+                    # (configs.highlight_lambda * highlight_loss.detach().cpu()), global_step)
                     writer.add_scalar("LR", optimizer.param_groups[0]["lr"], global_step)
 
                 # evaluate
@@ -465,7 +481,7 @@ def main_vslbase(configs, parser):
         parser.set_defaults(**pre_configs)
         configs = parser.parse_args()
         # build model
-        model = VSLBase(
+        model = VSLNet(
             configs=configs, word_vectors=dataset.get("word_vector", None)
         ).to(device)
 
