@@ -60,21 +60,21 @@ def convert_length_to_mask(lengths):
 
 
 def eval_test(
-    model,
-    data_loader,
-    device,
-    mode="test",
-    result_save_path=None,
-    gt_json_path=None,
-    epoch=None,
-    global_step=None,
+        model,
+        data_loader,
+        device,
+        mode="test",
+        result_save_path=None,
+        gt_json_path=None,
+        epoch=None,
+        global_step=None,
 ):
     predictions = []
     with torch.no_grad():
         for idx, (records, vfeats, vfeat_lens, word_ids, char_ids) in tqdm(
-            enumerate(data_loader),
-            total=len(data_loader),
-            desc="evaluate {}".format(mode),
+                enumerate(data_loader),
+                total=len(data_loader),
+                desc="evaluate {}".format(mode),
         ):
             # prepare features
             vfeats, vfeat_lens = vfeats.to(device), vfeat_lens.to(device)
@@ -95,9 +95,16 @@ def eval_test(
             # generate mask
             video_mask = convert_length_to_mask(vfeat_lens).to(device)
             # compute predicted results
-            _, start_logits, end_logits = model(
+            start_logits = None
+            end_logits = None
+            returned_values = model(
                 word_ids, char_ids, vfeats, video_mask, query_mask
             )
+            if len(returned_values) == 2:
+                start_logits, end_logits = returned_values
+            else:
+                _, start_logits, end_logits = returned_values
+
             start_indices, end_indices = model.extract_index(start_logits, end_logits)
             start_indices = start_indices.cpu().numpy()
             end_indices = end_indices.cpu().numpy()
