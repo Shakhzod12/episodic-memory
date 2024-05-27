@@ -105,10 +105,16 @@ def main_vslnet(configs, parser):
             configs=configs, word_vectors=dataset.get("word_vector", None)
         ).to(device)
 
-        # # for freeze
-        # for p in model.
+
+        ### Start Freezing some specific layers of the VSLNet
+
+        # Freeze the FeatureEncoder layer if freeze flag is set
+        # if freeze_stat == 1:
+        #     for param in model.feature_encoder.parameters():
+        #         param.requires_grad = False
 
         optimizer, scheduler = build_optimizer_and_scheduler(model, configs=configs)
+
         # start training
         best_metric = -1.0
         score_writer = open(
@@ -223,6 +229,7 @@ def main_vslnet(configs, parser):
                     # Recall@1, 0.3 IoU overlap --> best metric.
                     if results[0][0] >= best_metric:
                         best_metric = results[0][0]
+    ### t7 format
                         torch.save(
                             model.state_dict(),
                             os.path.join(
@@ -230,8 +237,19 @@ def main_vslnet(configs, parser):
                                 "{}_{}.t7".format(configs.model_name, global_step),
                             ),
                         )
+
+    ### pth format
+                        torch.save(
+                            model.state_dict(),
+                            os.path.join(
+                                model_dir,
+                                "{}_{}.pth".format(configs.model_name, global_step),
+                            ),
+                        )
+
                         # only keep the top-3 model checkpoints
                         filter_checkpoints(model_dir, suffix="t7", max_to_keep=3)
+                        filter_checkpoints(model_dir, suffix="pth", max_to_keep=3)
                     model.train()
 
         score_writer.close()
@@ -460,6 +478,8 @@ def main_vslbase(configs, parser):
                     # Recall@1, 0.3 IoU overlap --> best metric.
                     if results[0][0] >= best_metric:
                         best_metric = results[0][0]
+
+### t7 format
                         torch.save(
                             model.state_dict(),
                             os.path.join(
@@ -467,8 +487,19 @@ def main_vslbase(configs, parser):
                                 "{}_{}.t7".format(configs.model_name, global_step),
                             ),
                         )
+
+### pth format
+                        torch.save(
+                            model.state_dict(),
+                            os.path.join(
+                                model_dir,
+                                "{}_{}.pth".format(configs.model_name, global_step),
+                            ),
+                        )
+
                         # only keep the top-3 model checkpoints
                         filter_checkpoints(model_dir, suffix="t7", max_to_keep=3)
+                        filter_checkpoints(model_dir, suffix="pth", max_to_keep=3)
                     model.train()
 
         score_writer.close()
