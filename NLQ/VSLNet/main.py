@@ -109,9 +109,11 @@ def main_vslnet(configs, parser):
         ### Start Freezing some specific layers of the VSLNet
 
         # Freeze the FeatureEncoder layer if freeze flag is set
-        # if freeze_stat == 1:
-        #     for param in model.feature_encoder.parameters():
-        #         param.requires_grad = False
+
+        print("Freezing the Feature Encoder layer of the VSLNet model!")
+        if freeze_stat == 1:
+            for param in model.feature_encoder.parameters():
+                param.requires_grad = False
 
         optimizer, scheduler = build_optimizer_and_scheduler(model, configs=configs)
 
