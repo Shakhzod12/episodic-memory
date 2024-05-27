@@ -28,7 +28,7 @@ def main_vslnet(configs, parser):
     print(f"Running with {configs}", flush=True)
     freeze_stat = configs.freeze
     print("Freeze status: ", freeze_stat)
-    print("Freeze status =1?:", freeze_stat == 1)
+
     # set tensorflow configs
     set_th_config(configs.seed)
 
@@ -105,15 +105,43 @@ def main_vslnet(configs, parser):
             configs=configs, word_vectors=dataset.get("word_vector", None)
         ).to(device)
 
+        # Iterate over named parameters
+        for name, param in model.named_parameters():
+            print(f"Parameter Name: {name}")
+            print(f"Parameter Shape: {param.shape}")
+            print("-" * 30)
 
-        ### Start Freezing some specific layers of the VSLNet
-
-        # Freeze the FeatureEncoder layer if freeze flag is set
-
-        print("Freezing the Feature Encoder layer of the VSLNet model!")
+        # Start saving the model
         if freeze_stat == 1:
-            for param in model.feature_encoder.parameters():
-                param.requires_grad = False
+            # Load the state dictionary from the .pth file
+            # Construct the path to the saved .pth file
+            model_path = os.path.join(model_dir, "{}_final.pth".format(configs.model_name))
+            # Check if the model path exists
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f"The Path: {model_path} does not exist!")
+            else:
+                model.load_state_dict(torch.load(model_path))
+        else:
+            print("Not Loading or Freezing model ... ")
+
+        ### Start Freezing layers of the VSLNet
+        print("Freezing the some layers of the VSLNet model!")
+
+        if freeze_stat == 1:
+            layers_to_freeze = [
+                model.embedding_net,
+                model.video_affine,
+                model.feature_encoder,
+                model.cq_attention,
+                model.cq_concat,
+                # model.predictor,
+                # model.highlight_layer,
+            ]
+            for layer in layers_to_freeze:
+                for param in layer.parameters():
+                    param.requires_grad = False
+        else:
+            print("We are not freezing the layers!. received freezing_stat={}".format(freeze_stat))
 
         optimizer, scheduler = build_optimizer_and_scheduler(model, configs=configs)
 
@@ -231,39 +259,47 @@ def main_vslnet(configs, parser):
                     # Recall@1, 0.3 IoU overlap --> best metric.
                     if results[0][0] >= best_metric:
                         best_metric = results[0][0]
-    ### t7 format
-                        torch.save(
-                            model.state_dict(),
-                            os.path.join(
-                                model_dir,
-                                "{}_{}.t7".format(configs.model_name, global_step),
-                            ),
-                        )
+                        ### t7 format
+                        # torch.save(
+                        #     model.state_dict(),
+                        #     os.path.join(
+                        #         model_dir,
+                        #         "{}_{}.t7".format(configs.model_name, global_step),
+                        #     ),
+                        # )
 
-    ### pth format
-                        torch.save(
-                            model.state_dict(),
-                            os.path.join(
-                                model_dir,
-                                "{}_{}.pth".format(configs.model_name, global_step),
-                            ),
-                        )
+                        ### save the model in pth format
+                        if freeze_stat == 0:
+                            torch.save(
+                                model.state_dict(),
+                                os.path.join(
+                                    model_dir,
+                                    "{}_{}.pth".format(configs.model_name, global_step),
+                                ),
+                            )
+                        else:
+                            print("Not saving the model. Recieved freeze_stat {}".format(freeze_stat))
 
                         # only keep the top-3 model checkpoints
-                        filter_checkpoints(model_dir, suffix="t7", max_to_keep=3)
-                        filter_checkpoints(model_dir, suffix="pth", max_to_keep=3)
+                        # filter_checkpoints(model_dir, suffix="t7", max_to_keep=3)
+                        if freeze_stat == 0:
+                            filter_checkpoints(model_dir, suffix="pth", max_to_keep=3)
                     model.train()
 
         score_writer.close()
 
         # Save the final model at the end of training
-        torch.save(
-            model.state_dict(),
-            os.path.join(
-                model_dir,
-                "{}_final.pth".format(configs.model_name),
-            ),
-        )
+        if freeze_stat == 0:
+            torch.save(
+                model.state_dict(),
+                os.path.join(
+                    model_dir,
+                    "{}_final.pth".format(configs.model_name),
+                ),
+            )
+
+        ### See the learning weights(after & before saving the model with & without freezing)
+        print_learned_weights(model)
 
     elif configs.mode.lower() == "test":
         if not os.path.exists(model_dir):
@@ -292,9 +328,17 @@ def main_vslnet(configs, parser):
         print(score_str, flush=True)
 
 
+def print_learned_weights(model):
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(f"Layer: {name} | Weights: {param.data}")
+
+
 def main_vslbase(configs, parser):
     print(f"Running with {configs}", flush=True)
 
+    freeze_stat = configs.freeze
+    print("Freeze status: ", freeze_stat)
     # set tensorflow configs
     set_th_config(configs.seed)
 
@@ -370,6 +414,38 @@ def main_vslbase(configs, parser):
         model = VSLBase(
             configs=configs, word_vectors=dataset.get("word_vector", None)
         ).to(device)
+
+        # Start loading the model
+        if freeze_stat == 1:
+            # Load the state dictionary from the .pth file
+            # Construct the path to the saved .pth file
+            model_path = os.path.join(model_dir, "{}_final.pth".format(configs.model_name))
+            # Check if the model path exists
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f"The Path: {model_path} does not exist!")
+            else:
+                model.load_state_dict(torch.load(model_path))
+        else:
+            print("Not Loading or Freezing model ... ")
+
+        ### Start Freezing layers of the VSLNet
+        print("Freezing the some layers of the VSLNet model!")
+        if freeze_stat == 1:
+            layers_to_freeze = [
+                model.embedding_net,
+                model.video_affine,
+                model.feature_encoder,
+                model.cq_attention,
+                model.cq_concat,
+                # model.predictor,
+                # model.highlight_layer,
+            ]
+            for layer in layers_to_freeze:
+                for param in layer.parameters():
+                    param.requires_grad = False
+        else:
+            print("We are not freezing the layers!. received freezing_stat={}".format(freeze_stat))
+
         optimizer, scheduler = build_optimizer_and_scheduler(model, configs=configs)
         # start training
         best_metric = -1.0
@@ -490,30 +566,58 @@ def main_vslbase(configs, parser):
                     if results[0][0] >= best_metric:
                         best_metric = results[0][0]
 
-### t7 format
-                        torch.save(
-                            model.state_dict(),
-                            os.path.join(
-                                model_dir,
-                                "{}_{}.t7".format(configs.model_name, global_step),
-                            ),
-                        )
+                        # ### t7 format
+                        # # torch.save(
+                        # #     model.state_dict(),
+                        # #     os.path.join(
+                        # #         model_dir,
+                        # #         "{}_{}.t7".format(configs.model_name, global_step),
+                        # #     ),
+                        # # )
+                        #
+                        # ### pth format
+                        # torch.save(
+                        #     model.state_dict(),
+                        #     os.path.join(
+                        #         model_dir,
+                        #         "{}_{}.pth".format(configs.model_name, global_step),
+                        #     ),
+                        # )
+                        #
+                        # # only keep the top-3 model checkpoints
+                        # # filter_checkpoints(model_dir, suffix="t7", max_to_keep=3)
+                        # filter_checkpoints(model_dir, suffix="pth", max_to_keep=3)
 
-### pth format
-                        torch.save(
-                            model.state_dict(),
-                            os.path.join(
-                                model_dir,
-                                "{}_{}.pth".format(configs.model_name, global_step),
-                            ),
-                        )
+                        ### save the model in pth format
+                        if freeze_stat == 0:
+                            torch.save(
+                                model.state_dict(),
+                                os.path.join(
+                                    model_dir,
+                                    "{}_{}.pth".format(configs.model_name, global_step),
+                                ),
+                            )
+                        else:
+                            print("Not saving the model. Recieved freeze_stat {}".format(freeze_stat))
 
                         # only keep the top-3 model checkpoints
-                        filter_checkpoints(model_dir, suffix="t7", max_to_keep=3)
-                        filter_checkpoints(model_dir, suffix="pth", max_to_keep=3)
+                        # filter_checkpoints(model_dir, suffix="t7", max_to_keep=3)
+                        if freeze_stat == 0:
+                            filter_checkpoints(model_dir, suffix="pth", max_to_keep=3)
+
                     model.train()
 
         score_writer.close()
+
+        # Save the final model at the end of training
+        if freeze_stat == 0:
+            torch.save(
+                model.state_dict(),
+                os.path.join(
+                    model_dir,
+                    "{}_final.pth".format(configs.model_name),
+                ),
+            )
 
     elif configs.mode.lower() == "test":
         if not os.path.exists(model_dir):
