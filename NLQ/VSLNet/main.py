@@ -25,6 +25,7 @@ from utils.runner_utils import (
 
 
 def main_vslnet(configs, parser):
+
     print(f"Running with {configs}", flush=True)
     freeze_stat = configs.freeze
     print("Freeze status: ", freeze_stat)
@@ -295,6 +296,14 @@ def main_vslnet(configs, parser):
                 os.path.join(
                     model_dir,
                     "{}_final.pth".format(configs.model_name),
+                ),
+            )
+        else:
+            torch.save(
+                model.state_dict(),
+                os.path.join(
+                    model_dir,
+                    "{}_final_freeze.pth".format(configs.model_name),
                 ),
             )
 
