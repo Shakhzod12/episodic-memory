@@ -130,7 +130,7 @@ def main_vslnet(configs, parser):
 
         if freeze_stat == 1:
             layers_to_freeze = [
-                model.embedding_net,
+                # model.embedding_net,
                 model.video_affine,
                 model.feature_encoder,
                 model.cq_attention,
@@ -308,7 +308,7 @@ def main_vslnet(configs, parser):
             )
 
         ### See the learning weights(after & before saving the model with & without freezing)
-        print_learned_weights(model)
+        # print_learned_weights(model)
 
     elif configs.mode.lower() == "test":
         if not os.path.exists(model_dir):
