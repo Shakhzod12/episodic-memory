@@ -130,11 +130,11 @@ def main_vslnet(configs, parser):
 
         if freeze_stat == 1:
             layers_to_freeze = [
-                # model.embedding_net,
+                model.embedding_net,
                 model.video_affine,
                 model.feature_encoder,
                 model.cq_attention,
-                # model.cq_concat,
+                model.cq_concat,
                 # model.predictor,
                 # model.highlight_layer,
             ]
